@@ -10,15 +10,12 @@
     <script src="https://cdn.jsdelivr.net/npm/ol@v7.1.0/dist/ol.js"></script>
     <script src="https://unpkg.com/elm-pep@1.0.6/dist/elm-pep.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- 加载JSON文件 -->
-    <!-- <script type="text/javascript" src="./SensorInfo.json"></script> -->
-
 
     <script src="https://cdn.staticfile.org/jquery/1.10.2/jquery.min.js"></script>
     <style>
       .map {
         width: 100%;
-        height: 900px;
+        height: 100vh;
       }
 
       .ol-popup{
@@ -56,6 +53,8 @@
         <option value="scalebar">ScaleBar</option>
       </select>
 
+      
+
       <div id="scaleBarOptions">
         <label for="steps">Steps:</label>
         <input id="steps" type="range" value="4" min="1" max="8">
@@ -63,9 +62,51 @@
         <label><input type="checkbox" id="invertColors"> Invert colors</label>
       </div>
       <!-- 比例尺用到的控件--end -->
+
+      <!-- 更新按钮 -->
+      <input id = "updMap" type="button" value = "更新">
     </div>
 
     <script type="module">
+
+      // 更新按钮压下
+      $(function(){
+        $("#updMap").click(function(){
+          var request1 = new XMLHttpRequest();
+          var url = "./SensorInfo1.json"
+          request1.open("get", url + "?randnum=" + Date.now(), false);/*设置请求方法与路径*/
+          request1.send(null);/*不发送数据到服务器*/
+          if (request1.status == 200) {/*返回状态为200，即为数据获取成功*/
+            newJsonData = JSON.parse(request1.responseText);
+            flg = false;
+          }
+
+          // 新旧数据比较
+          if (jsonData.sort().toString() !== newJsonData.sort().toString()) {
+            flg = true;
+          } else {
+            for (var i = 0; i < jsonData.length; i++) {
+              if (jsonData[i].ID != newJsonData[i].ID) {
+                flg = true;
+              } else if (jsonData[i].lng != newJsonData[i].lng) {
+                flg = true;
+              } else if (jsonData[i].lat != newJsonData[i].lat) {
+                flg = true;
+              } else if (jsonData[i].valye != newJsonData[i].valye) {
+                flg = true;
+              }
+            }
+          }
+
+          // 当数据改变时刷新画面
+          if (flg) {
+            // 更新数组中的数据
+            jsonData = JSON.parse(request1.responseText);
+            // 刷新画面
+            getMap();
+          }
+        });
+      });
 
       // 比例尺控件的值初期花--start
       const scaleBarOptionsContainer = document.getElementById('scaleBarOptions');
@@ -105,42 +146,76 @@
       var newJsonData = [];
       // JOSN数据取得
 
-      console.log("比较:",jsonData.sort().toString() === newJsonData.sort().toString());
-
-      console.log("开始:");
       var url = "./SensorInfo.json"/*json文件url，本地的就写本地的位置，如果是服务器的就写服务器的路径*/
       var request = new XMLHttpRequest();
-      request.open("get", url += "?randnum=" + Date.now(), false);/*设置请求方法与路径*/
+      request.open("get", url + "?randnum=" + Date.now(), false);/*设置请求方法与路径*/
       request.send(null);/*不发送数据到服务器*/
       if (request.status == 200) {/*返回状态为200，即为数据获取成功*/
         jsonData = JSON.parse(request.responseText);
       }
+
+      // 设置图层的数据源
+      const rasterLayer = new ol.layer.Tile({
+        source: new ol.source.OSM()
+      });
+
+      // 创建地图
+      const map = new ol.Map({
+        controls: new ol.Collection().extend([scaleControl()]),//追加比例尺
+        // layers:layersArray,
+        target: document.getElementById('map'),
+        view: new ol.View({
+          projection:'EPSG:4326',
+          center: [132.458647, 34.39041],
+          zoom: 5,
+          hash: true,
+        }),
+      });
 
       // 地图做成
       if (jsonData.sort().toString() !== newJsonData.sort().toString()) {
         getMap();
       }
       
-      console.log("结束:");
-      
-      console.log("定时开始");
+      // 数组比较结果Flg
+      var flg = false;
       // JOSN数据定时取得
-      window.onload = function(){
-        var timer = setInterval(function(){
-          var request1 = new XMLHttpRequest();
-          request1.open("get", url += "?randnum=" + Date.now(), false);/*设置请求方法与路径*/
-          request1.send(null);/*不发送数据到服务器*/
-          if (request1.status == 200) {/*返回状态为200，即为数据获取成功*/
-            newJsonData = JSON.parse(request1.responseText);
-          }
+      // window.onload = function(){
+      //   var timer = setInterval(function(){
+      //     var request1 = new XMLHttpRequest();
+      //     request1.open("get", url + "?randnum=" + Date.now(), false);/*设置请求方法与路径*/
+      //     request1.send(null);/*不发送数据到服务器*/
+      //     if (request1.status == 200) {/*返回状态为200，即为数据获取成功*/
+      //       newJsonData = JSON.parse(request1.responseText);
+      //       flg = false;
+      //     }
 
-          // 当数据改变时刷新画面
-          if (jsonData.sort().toString() !== newJsonData.sort().toString()) {
-            // 刷新画面
-            window.location.reload();
-          }
-        },2000);
-			};
+      //     // 新旧数据比较
+      //     if (jsonData.sort().toString() !== newJsonData.sort().toString()) {
+      //       flg = true;
+      //     } else {
+      //       for (var i = 0; i < jsonData.length; i++) {
+      //         if (jsonData[i].ID != newJsonData[i].ID) {
+      //           flg = true;
+      //         } else if (jsonData[i].lng != newJsonData[i].lng) {
+      //           flg = true;
+      //         } else if (jsonData[i].lat != newJsonData[i].lat) {
+      //           flg = true;
+      //         } else if (jsonData[i].valye != newJsonData[i].valye) {
+      //           flg = true;
+      //         }
+      //       }
+      //     }
+
+      //     // 当数据改变时刷新画面
+      //     if (flg) {
+      //       // 更新数组中的数据
+      //       jsonData = JSON.parse(request1.responseText);
+      //       // 刷新画面
+      //       getMap();
+      //     }
+      //   },2000);
+			// };
 
       function getMap() {
         // 定义数据List
@@ -173,10 +248,6 @@
           }),
         });
 
-        // 设置图层的数据源
-        const rasterLayer = new ol.layer.Tile({
-          source: new ol.source.OSM()
-        });
         // Layers存储器添加图层数据源
         layersArray.push(rasterLayer);
 
@@ -195,20 +266,9 @@
           // Layers存储器添加Layer
           layersArray.push(vectorLayer);
         });
-
-        // 创建地图
-        const map = new ol.Map({
-          controls: new ol.Collection().extend([scaleControl()]),//追加比例尺
-          layers:layersArray,
-          target: document.getElementById('map'),
-          view: new ol.View({
-            projection:'EPSG:4326',
-            center: [132.458647, 34.39041],
-            zoom: 5,
-            hash: true,
-          }),
-        });
-
+        
+        // 添加Layers图层
+        map.setLayers(layersArray);
 
         // 比例尺检测-start
         function reconfigureScaleLine() {
@@ -299,8 +359,6 @@
         // Close the popup when the map is moved
         map.on('movestart', disposePopover);
       }
-
-      
     </script>
   </body>
 </html>
